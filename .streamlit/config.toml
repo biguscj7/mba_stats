@@ -1,5 +1,9 @@
+[server]
+port = 8701
+baseUrlPath = "norm_div"
+
 [browser]
-gatherUsageStats = false
+gatherUsageStats = true
 
 [theme]
 base="light"
