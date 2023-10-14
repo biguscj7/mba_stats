@@ -46,67 +46,84 @@ def overlapping_areas_opposite_direction(limit1: float, limit2: float) -> str:
 
 st.title("Normal Distribution plotter")
 
-mean_col, sd_col = st.columns(2)
+mean = st.sidebar.number_input(u"Mean (\u03bc)", value=0.0, step=0.1, key="mean")
 
-with mean_col:
-    mean = st.number_input("Mean", value=0.0, step=0.1, key="mean")
-with sd_col:
-    std = st.number_input("Standard Deviation", value=1.0, step=0.1, key="std")
+std = st.sidebar.number_input(u"Standard Deviation (\u03c3)", value=1.0, step=0.1, key="std")
 
-st.divider()
+dual_range = st.sidebar.checkbox("Dual range", value=False, key="dual_range")
 
-reg1_col, _, reg2_col = st.columns([4, 2, 4])
+col1, _, col2 = st.columns([5, 1, 5])
 
-with reg1_col:
-    st.markdown("### :red[Region 1]")
-    direction1 = st.selectbox("Direction 1", options=["<=", ">="], key="direction1", index=0)
-    limit1 = st.number_input("Limit 1", value=mean, step=0.1, key="limit1")
+with col1:
+    st.markdown("#### Region 1")
 
+if dual_range:
+    with col2:
+        st.markdown("#### Region 2")
 
-with reg2_col:
-    st.markdown("### :blue[Region 2]")
-    direction2 = st.selectbox("Direction 2", options=["<=", ">="], key="direction2", index=1)
-    limit2 = st.number_input("Limit 2", value=mean, step=0.1, key="limit2")
+reg1_dir, reg1_lim, _, reg2_dir, reg2_lim = st.columns([2, 3, 1, 2, 3])
 
+with reg1_dir:
+    direction1 = st.selectbox("Direction", options=["<=", ">="], key="direction1", index=0)
+with reg1_lim:
+    limit1 = st.number_input("Limit", value=mean, step=0.1, key="limit1")
+
+if dual_range:
+    with reg2_dir:
+        direction2 = st.selectbox("Direction", options=["<=", ">="], key="direction2", index=1)
+    with reg2_lim:
+        limit2 = st.number_input("Limit", value=mean, step=0.1, key="limit2")
 
 range1 = Range(limit1, direction1)
-range2 = Range(limit2, direction2)
-
-st.divider()
+if dual_range:
+    range2 = Range(limit2, direction2)
 
 custom_dist = stats.norm(loc=mean, scale=std)
 
-x = custom_dist.rvs(size=5000)
+x = custom_dist.rvs(size=10000)
 
-reg1_col.markdown(f"##### :red[Area of region 1: {area_under_curve(limit1, direction1): .4f}]")
-reg2_col.markdown(f"##### :blue[Area of region 2: {area_under_curve(limit2, direction2): .4f}]")
+st.divider()
 
-fig = ff.create_distplot([x], ['distplot'], curve_type='normal', show_hist=False, show_rug=False, colors=["white"])
+result1, _, result2 = st.columns([5, 1, 5])
+
+result1.markdown("##### Area of region 1:")
+result1.markdown(f"##### :red[{area_under_curve(limit1, direction1): .4f}]")
+
+if dual_range:
+    result2.markdown("##### Area of region 2:")
+    result2.markdown(f"##### :blue[{area_under_curve(limit2, direction2): .4f}]")
+
+fig = ff.create_distplot([x], ['distplot'], curve_type='normal', show_hist=False, show_rug=False, colors=["black"])
 x1, y1 = produce_values(fig, direction1, limit1)
-x2, y2 = produce_values(fig, direction2, limit2)
+
+if dual_range:
+    x2, y2 = produce_values(fig, direction2, limit2)
 
 # adds shaded area below the curve to the left of a limit
-fig.add_scatter(x=x2, y=y2, fill="tozeroy", fillcolor="rgba(0,0,200,0.25)", line_color="rgba(0,0,0,0)")
 fig.add_scatter(x=x1, y=y1, fill="tozeroy", fillcolor="rgba(200,0,0,0.25)", line_color="rgba(0,0,0,0)")
+if dual_range:
+    fig.add_scatter(x=x2, y=y2, fill="tozeroy", fillcolor="rgba(0,0,200,0.25)", line_color="rgba(0,0,0,0)")
 
-fig.update_layout(showlegend=False)
+
+fig.update_layout(showlegend=False, title=dict(text=f"Normal Distribution (\u03bc={mean}, \u03c3={std})", font_size=18))
 fig.update_yaxes(showticklabels=False)
-fig.update_xaxes(range=[mean - 3 * std, mean + 3 * std])
+fig.update_xaxes(range=[(mean - 3 * std) * 0.95, (mean + 3 * std) * 1.05], tickfont_size=18)
 
-ranges = (range1, range2)
+if dual_range:
+    ranges = (range1, range2)
 
-match ranges:
-    case (x, y) if x.direction == y.direction:
-        st.markdown(overlapping_areas_same_direction(limit1, limit2, direction1, direction2))
-    case (x, y) if (x.limit >= y.limit) and (x.direction == "<="):  # overlap
-        st.markdown(overlapping_areas_opposite_direction(x.limit, y.limit))
-    case (x, y) if (y.limit >= x.limit) and (y.direction == "<="):  # overlap
-        st.markdown(overlapping_areas_opposite_direction(x.limit, y.limit))
-    case (x, y) if (x.limit <= y.limit) and (x.direction == "<="):  # no overlap
-        st.markdown(separate_areas(x.limit, y.limit, x.direction, y.direction))
-    case (x, y) if (y.limit <= x.limit) and (y.direction == "<="):  # no overlap
-        st.markdown(separate_areas(y.limit, x.limit, y.direction, x.direction))
-    case _:
-        st.write("No match")
+    match ranges:
+        case (x, y) if x.direction == y.direction:
+            st.markdown(overlapping_areas_same_direction(limit1, limit2, direction1, direction2))
+        case (x, y) if (x.limit >= y.limit) and (x.direction == "<="):  # overlap
+            st.markdown(overlapping_areas_opposite_direction(x.limit, y.limit))
+        case (x, y) if (y.limit >= x.limit) and (y.direction == "<="):  # overlap
+            st.markdown(overlapping_areas_opposite_direction(x.limit, y.limit))
+        case (x, y) if (x.limit <= y.limit) and (x.direction == "<="):  # no overlap
+            st.markdown(separate_areas(x.limit, y.limit, x.direction, y.direction))
+        case (x, y) if (y.limit <= x.limit) and (y.direction == "<="):  # no overlap
+            st.markdown(separate_areas(y.limit, x.limit, y.direction, x.direction))
+        case _:
+            st.write("No match")
 
 st.plotly_chart(fig, use_container_width=True)
